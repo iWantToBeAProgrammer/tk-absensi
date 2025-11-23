@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getClasses } from "../../classes/actions";
 import { getAttendanceRecords, getAttendanceSummary } from "../actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +21,21 @@ const STATUS_LABELS: Record<string, string> = {
   SAKIT: "Sakit",
   IZIN: "Izin",
   ALPA: "Alpa",
+};
+
+const getClasses = async () => {
+  const response = await fetch("/api/classes", {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch classes");
+  }
+
+  return response.json();
 };
 
 export default function AttendanceReportsPage() {
@@ -135,13 +149,13 @@ export default function AttendanceReportsPage() {
               Dashboard
             </Button>
           </Link>
-          <Link href="/dashboard/attendance/input">
+          <Link href="/attendance/input">
             <Button variant="outline" size="sm" className="gap-2">
               <PlusCircle className="h-4 w-4" />
               Input Absensi
             </Button>
           </Link>
-          <Link href="/dashboard/attendance">
+          <Link href="/attendance">
             <Button variant="outline" size="sm" className="gap-2">
               <List className="h-4 w-4" />
               Lihat Riwayat

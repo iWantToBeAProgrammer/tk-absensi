@@ -77,7 +77,7 @@ export async function markAttendance(
       },
     });
 
-    revalidatePath("/dashboard/attendance");
+    revalidatePath("/attendance");
     return { success: true, data: result };
   } catch (error) {
     console.error("Error marking attendance:", error);

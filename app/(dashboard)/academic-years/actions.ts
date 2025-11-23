@@ -46,7 +46,7 @@ export async function createAcademicYear(
       },
     });
 
-    revalidatePath("/dashboard/academic-years");
+    revalidatePath("/admin/academic-years");
     return { success: true, data: academicYear };
   } catch (error) {
     console.error("Error creating academic year:", error);

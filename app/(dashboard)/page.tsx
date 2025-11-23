@@ -568,7 +568,6 @@ export default async function Home() {
                     >
                       {action.description}
                     </p>
-                    <ArrowRight className="h-3 w-3 absolute top-3 right-3 opacity-60" />
                   </Button>
                 </Link>
               ))}

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GraduationCap, Loader2, AlertCircle } from "lucide-react";
 import AcceptInvitationForm from "./_components/accept-invitation-form";
+import Image from "next/image";
 
 export default function AcceptInvitationPage() {
   return (
@@ -18,12 +19,12 @@ export default function AcceptInvitationPage() {
       <div className="w-full max-w-md relative z-10">
         {/* Logo and Header */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-blue-600 to-purple-600 shadow-lg mb-4">
-            <GraduationCap className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-slate-900 text-center">
-            TK Absensi
-          </h1>
+          <Image
+            src={"/assets/logo.webp"}
+            width={100}
+            height={100}
+            alt="website_logo"
+          />
           <p className="text-slate-600 text-center mt-2">Setel Password Akun</p>
         </div>
 
