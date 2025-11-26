@@ -141,6 +141,10 @@ export function AppSidebar({ userRole, ...props }: AppSidebarProps) {
       return pathname === url;
     }
 
+    if(url.startsWith('/attendance')) {
+      return pathname === url;
+    }
+
     return pathname.startsWith(url);
   };
 

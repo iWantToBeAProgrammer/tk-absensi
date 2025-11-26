@@ -448,7 +448,7 @@ export default async function AdminDashboardPage() {
                 </div>
               ))}
             </div>
-            <Link href="/students" className="mt-4 block">
+            <Link href="/admin/students" className="mt-4 block">
               <Button variant="ghost" className="w-full gap-2">
                 <Users className="h-3 w-3" />
                 Lihat Semua Siswa

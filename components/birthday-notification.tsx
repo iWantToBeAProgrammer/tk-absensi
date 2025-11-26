@@ -36,7 +36,7 @@ export function BirthdayNotification({ birthdays }: BirthdayNotificationProps) {
       try {
         const parsed = JSON.parse(stored);
         // Only keep today's dismissals
-        const today = new Date().toDateString();
+        const today = new Date().toLocaleDateString("id-ID");
         if (parsed.date === today) {
           setDismissed(parsed.ids || []);
         } else {
@@ -71,9 +71,6 @@ export function BirthdayNotification({ birthdays }: BirthdayNotificationProps) {
   const todayBirthdays = birthdays.filter(
     (b) => b.daysUntil === 0 && !dismissed.includes(`${b.type}-${b.id}`)
   );
-
-  console.log(dismissed);
-  console.log(todayBirthdays);
 
   if (todayBirthdays.length === 0) return null;
 

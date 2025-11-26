@@ -72,15 +72,23 @@ export default function AttendanceReportsPage() {
     setLoading(true);
     try {
       const result = await getClasses();
-      if (result.success) {
-        setClasses(result.data || []);
-        if (result.data && result.data.length > 0) {
-          setSelectedClass(result.data[0].id);
+      if (result) {
+        setClasses(result || []);
+        if (result && result.length > 0) {
+          setSelectedClass(result[0].id);
         }
       }
     } finally {
       setLoading(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-slate-500">Loading data...</p>
+      </div>
+    );
   }
 
   async function loadData() {
