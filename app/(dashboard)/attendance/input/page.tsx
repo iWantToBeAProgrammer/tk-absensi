@@ -31,7 +31,7 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
 interface Student {
   id: string;
@@ -199,8 +199,7 @@ export default function EnhancedAttendancePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const params = useParams();
-  const classId = params.classId as string;
+  const classId = useSearchParams().get("classId");
 
   useEffect(() => {
     if (classId) setSelectedClass(classId);

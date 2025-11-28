@@ -354,6 +354,7 @@ export function TeacherForm({
                     selected={date}
                     onSelect={setDate}
                     captionLayout="dropdown"
+                    locale={id}
                     disabled={{
                       before: new Date(
                         new Date().getFullYear() - 65,

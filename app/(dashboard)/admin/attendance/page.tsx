@@ -77,9 +77,7 @@ interface StudentAttendance {
     id: string;
     name: string;
   };
-  teacher: {
-    name: string;
-  };
+  teacher: { name: string | null } | null;
 }
 
 interface TeacherAttendance {
@@ -521,7 +519,10 @@ export default function AdminAttendancePage() {
                                 }
                               </Badge>
                             </td>
-                            <td className="py-3 px-4">{record.teacher.name}</td>
+                            <td className="py-3 px-4">
+                              {record.teacher?.name ??
+                                "Data guru tidak ditemukan"}
+                            </td>
                           </tr>
                         ))}
                       </tbody>

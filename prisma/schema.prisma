@@ -15,15 +15,14 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -41,12 +40,12 @@ model Session {
 
 model User {
   id            String    @id @default(cuid())
-  auth_id       String?   @unique
   name          String?
   email         String?   @unique
   emailVerified DateTime?
   image         String?
   role          String    @default("TEACHER")
+  auth_id       String?   @unique
   accounts      Account[]
   sessions      Session[]
 
@@ -68,26 +67,22 @@ model AcademicYear {
   isActive  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
-  classes Class[]
+  classes   Class[]
 
   @@map("academic_years")
 }
 
 model Class {
-  id             String   @id @default(cuid())
-  name           String
-  level          Level
-  academicYearId String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Relations
+  id                 String                   @id @default(cuid())
+  name               String
+  level              Level
+  academicYearId     String
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  attendances        Attendance[]
   academicYear       AcademicYear             @relation(fields: [academicYearId], references: [id])
   students           Student[]
   teacherAssignments TeacherClassAssignment[]
-  attendances        Attendance[]
 
   @@map("classes")
 }
@@ -104,28 +99,24 @@ model Student {
   classId     String
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-
-  // Relations
-  class       Class        @relation(fields: [classId], references: [id])
   attendances Attendance[]
+  class       Class         @relation(fields: [classId], references: [id])
 
   @@map("students")
 }
 
 model Teacher {
-  id          String   @id @default(cuid())
-  userId      String?  @unique // Make it optional since it will be set after invitation
-  email       String?  @unique // Add email field
-  name        String
-  phone       String
-  dateOfBirth DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  classAssignments   TeacherClassAssignment[]
+  id                 String                   @id @default(cuid())
+  userId             String?                  @unique
+  name               String
+  phone              String
+  dateOfBirth        DateTime
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  email              String?                  @unique
   attendancesCreated Attendance[]             @relation("CreatedBy")
   teacherAttendances TeacherAttendance[]
+  classAssignments   TeacherClassAssignment[]
 
   @@map("teachers")
 }
@@ -136,10 +127,8 @@ model TeacherClassAssignment {
   classId   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
-  teacher Teacher @relation(fields: [teacherId], references: [id])
-  class   Class   @relation(fields: [classId], references: [id])
+  class     Class    @relation(fields: [classId], references: [id])
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
 
   @@unique([teacherId, classId])
   @@map("teacher_class_assignments")
@@ -151,12 +140,10 @@ model TeacherAttendance {
   date      DateTime
   clockIn   DateTime
   clockOut  DateTime?
-  location  Json? // Store location coordinates
+  location  Json?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-
-  // Relations
-  teacher Teacher @relation(fields: [teacherId], references: [id])
+  teacher   Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@unique([teacherId, date])
   @@map("teacher_attendances")
@@ -168,14 +155,12 @@ model Attendance {
   status    AttendanceStatus
   studentId String
   classId   String
-  createdBy String
+  createdBy String?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
-
-  // Relations
-  student Student @relation(fields: [studentId], references: [id])
-  class   Class   @relation(fields: [classId], references: [id])
-  teacher Teacher @relation("CreatedBy", fields: [createdBy], references: [id])
+  class     Class            @relation(fields: [classId], references: [id])
+  teacher   Teacher?         @relation("CreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  student   Student          @relation(fields: [studentId], references: [id])
 
   @@unique([date, studentId])
   @@unique([studentId, date], name: "studentId_date")

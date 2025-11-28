@@ -2,25 +2,33 @@
 
 import { prisma } from "@/lib/prisma";
 
+// Helper to adjust a date object to Jakarta Start/End of day in UTC
+// 00:00 WIB = 17:00 UTC (Previous Day)
+// 23:59 WIB = 16:59 UTC (Current Day)
+function getJakartaDateFilter(from?: Date, to?: Date) {
+  if (!from || !to) return {};
+
+  const start = new Date(from);
+  // Set to 00:00:00 UTC, then subtract 7 hours to get 00:00 WIB
+  start.setUTCHours(0 - 7, 0, 0, 0);
+
+  const end = new Date(to);
+  // Set to 23:59:59 UTC, then subtract 7 hours to get 23:59 WIB
+  end.setUTCHours(23 - 7, 59, 59, 999);
+
+  return {
+    gte: start,
+    lte: end,
+  };
+}
+
 export async function getAdminAttendanceStats(
   dateFrom?: Date,
   dateTo?: Date,
   classId?: string
 ) {
   try {
-    let dateFilter: any = {};
-
-    if (dateFrom && dateTo) {
-      const start = new Date(dateFrom);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(dateTo);
-      end.setHours(23, 59, 59, 999);
-
-      dateFilter = {
-        gte: start,
-        lte: end,
-      };
-    }
+    const dateFilter = getJakartaDateFilter(dateFrom, dateTo);
 
     const where: any = {};
     if (Object.keys(dateFilter).length > 0) where.date = dateFilter;
@@ -45,22 +53,16 @@ export async function getAdminAttendanceStats(
     });
 
     // Teacher attendance stats
-    let teacherDateFilter: any = {};
-    if (dateFrom && dateTo) {
-      const start = new Date(dateFrom);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(dateTo);
-      end.setHours(23, 59, 59, 999);
-
-      teacherDateFilter = {
-        gte: start,
-        lte: end,
-      };
-    }
+    // Teachers might use a different logic if their attendance table structure differs,
+    // but applying the same timezone logic is generally safer.
+    const teacherDateFilter = getJakartaDateFilter(dateFrom, dateTo);
 
     const teacherAttendances = await prisma.teacherAttendance.findMany({
       where: {
-        date: teacherDateFilter,
+        date:
+          Object.keys(teacherDateFilter).length > 0
+            ? teacherDateFilter
+            : undefined,
       },
       include: {
         teacher: true,
@@ -100,19 +102,7 @@ export async function getStudentAttendanceRecords(
   offset = 0
 ) {
   try {
-    let dateFilter: any = {};
-
-    if (dateFrom && dateTo) {
-      const start = new Date(dateFrom);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(dateTo);
-      end.setHours(23, 59, 59, 999);
-
-      dateFilter = {
-        gte: start,
-        lte: end,
-      };
-    }
+    const dateFilter = getJakartaDateFilter(dateFrom, dateTo);
 
     const where: any = {};
     if (Object.keys(dateFilter).length > 0) where.date = dateFilter;
@@ -158,19 +148,7 @@ export async function getTeacherAttendanceRecords(
   offset = 0
 ) {
   try {
-    let dateFilter: any = {};
-
-    if (dateFrom && dateTo) {
-      const start = new Date(dateFrom);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(dateTo);
-      end.setHours(23, 59, 59, 999);
-
-      dateFilter = {
-        gte: start,
-        lte: end,
-      };
-    }
+    const dateFilter = getJakartaDateFilter(dateFrom, dateTo);
 
     const where: any = {};
     if (Object.keys(dateFilter).length > 0) where.date = dateFilter;
@@ -236,7 +214,6 @@ export async function getAllClasses() {
 
 export async function getUpcomingBirthdays() {
   try {
-    // Get all students with birthdays
     const students = await prisma.student.findMany({
       where: {
         status: "ACTIVE",
@@ -253,7 +230,6 @@ export async function getUpcomingBirthdays() {
       },
     });
 
-    // Get all teachers with birthdays
     const teachers = await prisma.teacher.findMany({
       select: {
         id: true,
@@ -262,30 +238,39 @@ export async function getUpcomingBirthdays() {
       },
     });
 
-    const today = new Date();
-    const currentYear = today.getFullYear();
+    // FIX: Get current time in Jakarta
+    const now = new Date();
+    // Convert UTC 'now' to a string representing Jakarta time
+    const jakartaTimeStr = now.toLocaleString("en-US", {
+      timeZone: "Asia/Jakarta",
+    });
+    // Create a new Date object where the internal time matches Jakarta wall-clock time
+    // This allows us to use .getFullYear(), .getMonth() etc directly
+    const todayJakarta = new Date(jakartaTimeStr);
 
-    // Calculate days until birthday
+    const currentYear = todayJakarta.getFullYear();
+
     const calculateDaysUntilBirthday = (dob: Date) => {
+      // dob is stored as UTC in DB, typically with 00:00 time
       const birthday = new Date(dob);
+
       const nextBirthday = new Date(
         currentYear,
         birthday.getMonth(),
         birthday.getDate()
       );
 
-      // If birthday has passed this year, check next year
-      if (nextBirthday < today) {
+      // If birthday has passed this year (in Jakarta time), check next year
+      if (nextBirthday < todayJakarta) {
         nextBirthday.setFullYear(currentYear + 1);
       }
 
-      const diffTime = nextBirthday.getTime() - today.getTime();
+      const diffTime = nextBirthday.getTime() - todayJakarta.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       return diffDays;
     };
 
-    // Combine and sort birthdays
     const allBirthdays = [
       ...students.map((student) => ({
         id: student.id,
@@ -305,7 +290,7 @@ export async function getUpcomingBirthdays() {
       })),
     ]
       .sort((a, b) => a.daysUntil - b.daysUntil)
-      .slice(0, 4); // Get nearest 4 birthdays
+      .slice(0, 4);
 
     return {
       success: true,

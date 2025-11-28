@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/prisma";
+"use client";
+
 import {
   Card,
   CardContent,
@@ -13,151 +14,54 @@ import {
   BookOpen,
   GraduationCap,
   CheckCircle,
-  Calendar,
   School,
-  TrendingUp,
-  AlertCircle,
   UserPlus,
-  FileText,
-  ArrowRight,
   BarChart3,
+  Loader2,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
+import { useStudents } from "@/hooks/use-students";
+import { useTeachers } from "@/hooks/use-teachers";
+import { useClasses } from "@/hooks/use-classes";
+import { useAttendanceStats } from "@/hooks/use-attendance-stats";
 
-async function getAdminStats() {
-  try {
-    const [
-      totalStudents,
-      totalTeachers,
-      totalClasses,
-      activeYear,
-      todayAttendance,
-      recentStudents,
-      classDistribution,
-      attendanceTrend,
-    ] = await Promise.all([
-      // Basic counts
-      prisma.student.count({ where: { status: "ACTIVE" } }),
-      prisma.teacher.count(),
-      prisma.class.count(),
-      prisma.academicYear.findFirst({ where: { isActive: true } }),
+export default function AdminDashboardPage() {
+  // 1. Fetch data from all hooks
+  const { data: students, isLoading: studentsLoading } = useStudents();
+  const { data: teachers, isLoading: teachersLoading } = useTeachers();
+  const { data: classes, isLoading: classesLoading } = useClasses();
+  const { stats: attendanceStats, loading: statsLoading } =
+    useAttendanceStats();
 
-      // Today's attendance
-      (async () => {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
+  const isLoading =
+    studentsLoading || teachersLoading || classesLoading || statsLoading;
 
-        const [present, sick, excused, absent] = await Promise.all([
-          prisma.attendance.count({
-            where: {
-              date: { gte: todayStart, lte: todayEnd },
-              status: "HADIR",
-            },
-          }),
-          prisma.attendance.count({
-            where: {
-              date: { gte: todayStart, lte: todayEnd },
-              status: "SAKIT",
-            },
-          }),
-          prisma.attendance.count({
-            where: {
-              date: { gte: todayStart, lte: todayEnd },
-              status: "IZIN",
-            },
-          }),
-          prisma.attendance.count({
-            where: {
-              date: { gte: todayStart, lte: todayEnd },
-              status: "ALPA",
-            },
-          }),
-        ]);
+  // 2. Client-side Calculations
 
-        const total = present + sick + excused + absent;
-        const attendanceRate = total > 0 ? (present / total) * 100 : 0;
+  // Calculate Active Students
+  const activeStudents = students?.filter((s) => s.status === "ACTIVE") || [];
 
-        return { present, sick, excused, absent, total, attendanceRate };
-      })(),
+  // Recent Students (Sort by createdAt descending)
+  // Ensure your student object has 'createdAt' and 'class' relation loaded
+  const recentStudents = activeStudents
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+    .slice(0, 5);
 
-      // Recent students (last 5)
-      prisma.student.findMany({
-        where: { status: "ACTIVE" },
-        include: { class: true },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      }),
-
-      // Class distribution
-      prisma.class.findMany({
-        include: {
-          _count: {
-            select: {
-              students: {
-                where: { status: "ACTIVE" },
-              },
-            },
-          },
-          academicYear: true,
-        },
-      }),
-
-      // Weekly attendance trend
-      (async () => {
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-        const dailyAttendance = await prisma.attendance.groupBy({
-          by: ["date"],
-          where: {
-            date: { gte: oneWeekAgo },
-            status: "HADIR",
-          },
-          _count: true,
-        });
-
-        return dailyAttendance.sort(
-          (a, b) => a.date.getTime() - b.date.getTime()
-        );
-      })(),
-    ]);
-
-    return {
-      totalStudents,
-      totalTeachers,
-      totalClasses,
-      todayAttendance,
-      activeYear,
-      recentStudents,
-      classDistribution,
-      attendanceTrend,
-    };
-  } catch (error) {
-    console.error("Error fetching admin stats:", error);
-    return {
-      totalStudents: 0,
-      totalTeachers: 0,
-      totalClasses: 0,
-      todayAttendance: {
-        present: 0,
-        sick: 0,
-        excused: 0,
-        absent: 0,
-        total: 0,
-        attendanceRate: 0,
-      },
-      activeYear: null,
-      recentStudents: [],
-      classDistribution: [],
-      attendanceTrend: [],
-    };
-  }
-}
-
-export default async function AdminDashboardPage() {
-  const stats = await getAdminStats();
+  // Class Distribution (Count active students per class)
+  const classDistribution =
+    classes?.map((cls) => {
+      const studentCount = activeStudents.filter(
+        (s) => s.classId === cls.id
+      ).length;
+      return {
+        ...cls,
+        studentCount,
+      };
+    }) || [];
 
   const quickActions = [
     {
@@ -190,11 +94,19 @@ export default async function AdminDashboardPage() {
     },
   ];
 
-  const levelLabels = {
+  const levelLabels: Record<string, string> = {
     KB: "KB",
     TKA: "TK A",
     TKB: "TK B",
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -210,10 +122,10 @@ export default async function AdminDashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {stats.activeYear && (
+            {attendanceStats?.activeYear && (
               <Badge variant="secondary" className="px-3 py-1">
                 <School className="w-3 h-3 mr-1" />
-                Tahun Aktif: {stats.activeYear.year}
+                Tahun Aktif: {attendanceStats.activeYear.year}
               </Badge>
             )}
             <Badge variant="default" className="px-3 py-1">
@@ -231,7 +143,7 @@ export default async function AdminDashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalStudents}</div>
+            <div className="text-2xl font-bold">{activeStudents.length}</div>
             <p className="text-xs text-muted-foreground">Siswa aktif</p>
             <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-full -translate-y-8 translate-x-8" />
           </CardContent>
@@ -243,7 +155,7 @@ export default async function AdminDashboardPage() {
             <GraduationCap className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTeachers}</div>
+            <div className="text-2xl font-bold">{teachers?.length || 0}</div>
             <p className="text-xs text-muted-foreground">Guru terdaftar</p>
             <div className="absolute top-0 right-0 w-16 h-16 bg-green-500/10 rounded-full -translate-y-8 translate-x-8" />
           </CardContent>
@@ -255,7 +167,7 @@ export default async function AdminDashboardPage() {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalClasses}</div>
+            <div className="text-2xl font-bold">{classes?.length || 0}</div>
             <p className="text-xs text-muted-foreground">Kelas aktif</p>
             <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-full -translate-y-8 translate-x-8" />
           </CardContent>
@@ -270,11 +182,11 @@ export default async function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.todayAttendance.present}
+              {attendanceStats?.todayAttendance.present || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {stats.todayAttendance.attendanceRate.toFixed(1)}% dari{" "}
-              {stats.todayAttendance.total}
+              {attendanceStats?.todayAttendance.attendanceRate.toFixed(1)}% dari{" "}
+              {attendanceStats?.todayAttendance.total || 0}
             </p>
             <div className="absolute top-0 right-0 w-16 h-16 bg-orange-500/10 rounded-full -translate-y-8 translate-x-8" />
           </CardContent>
@@ -323,13 +235,17 @@ export default async function AdminDashboardPage() {
               <div className="flex items-center justify-between text-sm">
                 <span>Tingkat Kehadiran</span>
                 <span className="font-semibold">
-                  {stats.todayAttendance.attendanceRate.toFixed(1)}%
+                  {attendanceStats?.todayAttendance.attendanceRate.toFixed(1)}%
                 </span>
               </div>
               <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
                 <div
                   className="bg-green-500 h-full rounded-full transition-all"
-                  style={{ width: `${stats.todayAttendance.attendanceRate}%` }}
+                  style={{
+                    width: `${
+                      attendanceStats?.todayAttendance.attendanceRate || 0
+                    }%`,
+                  }}
                 />
               </div>
             </div>
@@ -339,7 +255,7 @@ export default async function AdminDashboardPage() {
                 <div className="w-2 h-2 rounded-full bg-green-500" />
                 <div>
                   <div className="font-semibold">
-                    {stats.todayAttendance.present}
+                    {attendanceStats?.todayAttendance.present || 0}
                   </div>
                   <div className="text-xs text-muted-foreground">Hadir</div>
                 </div>
@@ -348,7 +264,7 @@ export default async function AdminDashboardPage() {
                 <div className="w-2 h-2 rounded-full bg-yellow-500" />
                 <div>
                   <div className="font-semibold">
-                    {stats.todayAttendance.sick}
+                    {attendanceStats?.todayAttendance.sick || 0}
                   </div>
                   <div className="text-xs text-muted-foreground">Sakit</div>
                 </div>
@@ -357,7 +273,7 @@ export default async function AdminDashboardPage() {
                 <div className="w-2 h-2 rounded-full bg-blue-500" />
                 <div>
                   <div className="font-semibold">
-                    {stats.todayAttendance.excused}
+                    {attendanceStats?.todayAttendance.excused || 0}
                   </div>
                   <div className="text-xs text-muted-foreground">Izin</div>
                 </div>
@@ -366,7 +282,7 @@ export default async function AdminDashboardPage() {
                 <div className="w-2 h-2 rounded-full bg-red-500" />
                 <div>
                   <div className="font-semibold">
-                    {stats.todayAttendance.absent}
+                    {attendanceStats?.todayAttendance.absent || 0}
                   </div>
                   <div className="text-xs text-muted-foreground">Alpa</div>
                 </div>
@@ -392,28 +308,34 @@ export default async function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats.classDistribution.map((classItem) => (
-                <div
-                  key={classItem.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <BookOpen className="h-4 w-4 text-primary" />
+              {classDistribution.length > 0 ? (
+                classDistribution.map((classItem: any) => (
+                  <div
+                    key={classItem.id}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <BookOpen className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{classItem.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {levelLabels[classItem.level] || classItem.level} •{" "}
+                          {attendanceStats?.activeYear?.year || "-"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{classItem.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {levelLabels[classItem.level]} •{" "}
-                        {classItem.academicYear.year}
-                      </p>
-                    </div>
+                    <Badge variant="secondary">
+                      {classItem.studentCount} Siswa
+                    </Badge>
                   </div>
-                  <Badge variant="secondary">
-                    {classItem._count.students} Siswa
-                  </Badge>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  Tidak ada data kelas
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -426,27 +348,33 @@ export default async function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats.recentStudents.map((student) => (
-                <div
-                  key={student.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-500/10 rounded-lg">
-                      <UserPlus className="h-4 w-4 text-green-500" />
+              {recentStudents.length > 0 ? (
+                recentStudents.map((student: any) => (
+                  <div
+                    key={student.id}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-500/10 rounded-lg">
+                        <UserPlus className="h-4 w-4 text-green-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{student.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {student.class?.name || "Belum ada kelas"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{student.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {student.class.name}
-                      </p>
-                    </div>
+                    <Badge variant="default">
+                      {student.gender === "MALE" ? "L" : "P"}
+                    </Badge>
                   </div>
-                  <Badge variant="default">
-                    {student.gender === "MALE" ? "L" : "P"}
-                  </Badge>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  Tidak ada siswa baru
+                </p>
+              )}
             </div>
             <Link href="/admin/students" className="mt-4 block">
               <Button variant="ghost" className="w-full gap-2">
@@ -483,7 +411,7 @@ export default async function AdminDashboardPage() {
                 Tahun Akademik
               </div>
               <div className="font-semibold">
-                {stats.activeYear?.year || "Belum diatur"}
+                {attendanceStats?.activeYear?.year || "Belum diatur"}
               </div>
             </div>
             <div className="space-y-1">
@@ -491,7 +419,7 @@ export default async function AdminDashboardPage() {
                 Total Data
               </div>
               <div className="font-semibold">
-                {stats.totalStudents + stats.totalTeachers} Entri
+                {(students?.length || 0) + (teachers?.length || 0)} Entri
               </div>
             </div>
             <div className="space-y-1">

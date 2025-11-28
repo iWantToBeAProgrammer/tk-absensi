@@ -358,7 +358,11 @@ export function StudentForm({
               Kelas <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={formData.classId}
+              value={
+                formData.classId === ""
+                  ? activeClasses[0]?.id
+                  : formData.classId
+              }
               onValueChange={(value) =>
                 setFormData((prev) => ({ ...prev, classId: value }))
               }

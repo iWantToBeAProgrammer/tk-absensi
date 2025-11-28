@@ -181,19 +181,6 @@ export default async function MyClassesPage() {
                           Absensi
                         </Button>
                       </Link>
-                      <Link
-                        href={`/classes/${classData.id}/students`}
-                        className="flex-1"
-                      >
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full gap-2"
-                        >
-                          <Users className="h-3 w-3" />
-                          Lihat Siswa
-                        </Button>
-                      </Link>
                     </div>
                   </CardContent>
                 </Card>
