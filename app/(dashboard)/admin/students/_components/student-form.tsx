@@ -352,21 +352,26 @@ export function StudentForm({
             )}
           </div>
 
-          {/* Class Selection */}
           <div className="space-y-2">
             <Label htmlFor="class">
               Kelas <span className="text-red-500">*</span>
             </Label>
             <Select
+              // 1. Safe handling for value: if no classes, ensure value is undefined (placeholder shows)
               value={
-                formData.classId === ""
-                  ? activeClasses[0]?.id
-                  : formData.classId
+                formData.classId
+                  ? formData.classId
+                  : activeClasses.length > 0
+                  ? activeClasses[0].id
+                  : undefined
               }
               onValueChange={(value) =>
                 setFormData((prev) => ({ ...prev, classId: value }))
               }
-              disabled={isLoading || loadingClasses}
+              // 2. Disable the dropdown entirely if no classes exist
+              disabled={
+                isLoading || loadingClasses || activeClasses.length === 0
+              }
             >
               <SelectTrigger className={errors.classId ? "border-red-500" : ""}>
                 <SelectValue placeholder="Pilih kelas" />
@@ -377,23 +382,26 @@ export function StudentForm({
                     {classItem.name} - {classItem.academicYear.year}
                   </SelectItem>
                 ))}
+
+                {/* 3. FIX: Change value="" to value="no-classes" */}
                 {activeClasses.length === 0 && (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="no-classes" disabled>
                     Tidak ada kelas aktif
                   </SelectItem>
                 )}
               </SelectContent>
             </Select>
+
             {errors.classId && (
               <p className="text-sm text-red-500">{errors.classId}</p>
             )}
-            {activeClasses.length === 0 && (
+
+            {activeClasses.length === 0 && !loadingClasses && (
               <p className="text-sm text-yellow-600">
                 Buat kelas terlebih dahulu pada tahun akademik aktif
               </p>
             )}
           </div>
-
           {/* Status (only for editing) */}
           {isEditing && (
             <div className="space-y-2">
